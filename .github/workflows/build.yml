@@ -1,0 +1,32 @@
+name: Build graphics demos
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-freeglut
+      - shell: msys2 {0}
+        run: |
+          cmake -S . -B build -G Ninja
+          cmake --build build
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y freeglut3-dev libglu1-mesa-dev ninja-build xvfb xauth
+      - run: cmake -S . -B build -G Ninja && cmake --build build
+      - name: Open both scenes on a virtual display
+        working-directory: build
+        run: |
+          for scene in birthday-card campus-scene; do
+            status=0
+            xvfb-run -a timeout 4s "./$scene" || status=$?
+            test "$status" -eq 124
+          done
